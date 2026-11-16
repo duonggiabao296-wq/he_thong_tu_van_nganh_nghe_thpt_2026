@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tư vấn ngành nghề THPT 2026</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-in">
+      <div>
+        <h1>Tư vấn chọn ngành · THPT 2026</h1>
+        <p class="sub">Hệ chuyên gia kết hợp AI Utility Ranking — 110 ngành, 15 nhóm ngành</p>
+      </div>
+      <div id="status" class="pill pill-wait" title="Trạng thái kết nối backend">Đang kết nối…</div>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <form id="form" class="panel" autocomplete="off">
+      <section>
+        <h2>1. Hồ sơ &amp; định hướng</h2>
+        <div class="grid g3">
+          <label>Khối lớp
+            <select id="lop"><option>10</option><option>11</option><option selected>12</option></select>
+          </label>
+          <label>Khu vực ưu tiên
+            <select id="kv">
+              <option value="0.75">KV1 (+0.75đ)</option>
+              <option value="0.5">KV2-NT (+0.50đ)</option>
+              <option value="0.25" selected>KV2 (+0.25đ)</option>
+              <option value="0">KV3 (0.00đ)</option>
+            </select>
+          </label>
+          <label>Ngân sách học phí: <b id="budget_v">35</b> triệu/năm
+            <input id="budget" type="range" min="5" max="150" step="1" value="35">
+          </label>
+          <label>Giá trị ưu tiên số 1
+            <select id="values"></select>
+          </label>
+          <label>Gia đình định hướng
+            <select id="family"></select>
+          </label>
+          <label>Dự định của bản thân
+            <select id="intent"></select>
+          </label>
+          <label>Thể lực: <b id="the_luc_v">3</b> / 5
+            <input id="the_luc" type="range" min="1" max="5" step="1" value="3">
+          </label>
+          <label>IELTS (bỏ trống nếu không có)
+            <input id="ielts" type="number" step="0.5" min="0" max="9" value="6.5">
+          </label>
+          <label>ĐGNL HSA (/150, lớp 12)
+            <input id="dgnl" type="number" step="1" min="0" max="150" value="95">
+          </label>
+          <label>Giải HSG
+            <select id="hsg">
+              <option>Không</option><option>Cấp tỉnh/thành</option><option>Quốc gia/Quốc tế</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>2. Trắc nghiệm Holland RIASEC <small>(1.0 – 5.0)</small></h2>
+        <div id="holland" class="grid g3"></div>
+      </section>
+
+      <section>
+        <h2>3. Mức quan tâm các nhóm ngành <small>(1 – 5)</small></h2>
+        <div id="interest" class="grid g3"></div>
+      </section>
+
+      <section>
+        <h2>4. Điểm trung bình học bạ <small>(0–10, để trống nếu không học)</small></h2>
+        <div id="hb" class="grid g6"></div>
+      </section>
+
+      <section>
+        <h2>5. Điểm thi tốt nghiệp THPT 2026 <small>(chỉ lớp 12, để trống nếu không thi)</small></h2>
+        <div id="thi" class="grid g6"></div>
+      </section>
+
+      <button id="submit" class="btn" type="submit">Chạy tư vấn ngành nghề 2026</button>
+    </form>
+
+    <aside class="panel result" id="result" aria-live="polite">
+      <h2>Kết quả tư vấn</h2>
+      <div id="out"><p class="muted">Nhập hồ sơ rồi bấm nút tư vấn.</p></div>
+      <details id="metrics" hidden>
+        <summary>Độ chính xác mô hình (tập test)</summary>
+        <div id="metrics_body" class="muted"></div>
+      </details>
+    </aside>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

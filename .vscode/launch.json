@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: FastAPI (uvicorn)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "jinja": true
+    },
+    {
+      "name": "Backend: Train model",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/training/train_model.py",
+      "args": ["--data-dir", "${workspaceFolder}/backend/training/data"],
+      "cwd": "${workspaceFolder}/backend",
+      "console": "integratedTerminal"
+    }
+  ]
+}
