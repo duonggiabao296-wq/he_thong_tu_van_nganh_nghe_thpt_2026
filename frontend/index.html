@@ -1,97 +1,69 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tư vấn ngành nghề THPT 2026</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hệ Chuyên Gia Tư Vấn Ngành Nghề THPT 2026</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <header class="top">
-    <div class="wrap top-in">
-      <div>
-        <h1>Tư vấn chọn ngành · THPT 2026</h1>
-        <p class="sub">Hệ chuyên gia kết hợp AI Utility Ranking — 110 ngành, 15 nhóm ngành</p>
-      </div>
-      <div id="status" class="pill pill-wait" title="Trạng thái kết nối backend">Đang kết nối…</div>
+  <header>
+    <div>
+      <h1>Hệ Chuyên Gia Tư Vấn Ngành Nghề THPT 2026</h1>
+      <small>Suy diễn tiến (Forward Chaining) · Cơ sở luật IF–THEN · Giải trình vết suy diễn</small>
     </div>
+    <span id="statusBadge" class="badge err">Đang kết nối backend...</span>
   </header>
 
-  <main class="wrap layout">
-    <form id="form" class="panel" autocomplete="off">
-      <section>
-        <h2>1. Hồ sơ &amp; định hướng</h2>
-        <div class="grid g3">
-          <label>Khối lớp
-            <select id="lop"><option>10</option><option>11</option><option selected>12</option></select>
-          </label>
-          <label>Khu vực ưu tiên
-            <select id="kv">
-              <option value="0.75">KV1 (+0.75đ)</option>
-              <option value="0.5">KV2-NT (+0.50đ)</option>
-              <option value="0.25" selected>KV2 (+0.25đ)</option>
-              <option value="0">KV3 (0.00đ)</option>
-            </select>
-          </label>
-          <label>Ngân sách học phí: <b id="budget_v">35</b> triệu/năm
-            <input id="budget" type="range" min="5" max="150" step="1" value="35">
-          </label>
-          <label>Giá trị ưu tiên số 1
-            <select id="values"></select>
-          </label>
-          <label>Gia đình định hướng
-            <select id="family"></select>
-          </label>
-          <label>Dự định của bản thân
-            <select id="intent"></select>
-          </label>
-          <label>Thể lực: <b id="the_luc_v">3</b> / 5
-            <input id="the_luc" type="range" min="1" max="5" step="1" value="3">
-          </label>
-          <label>IELTS (bỏ trống nếu không có)
-            <input id="ielts" type="number" step="0.5" min="0" max="9" value="6.5">
-          </label>
-          <label>ĐGNL HSA (/150, lớp 12)
-            <input id="dgnl" type="number" step="1" min="0" max="150" value="95">
-          </label>
-          <label>Giải HSG
-            <select id="hsg">
-              <option>Không</option><option>Cấp tỉnh/thành</option><option>Quốc gia/Quốc tế</option>
-            </select>
-          </label>
+  <main class="container">
+    <section>
+      <div class="btn-row">
+        <button type="button" class="btn-outline" id="fillA">Nạp Hồ sơ A (Kỹ thuật A00)</button>
+        <button type="button" class="btn-outline" id="fillB">Nạp Hồ sơ B (Kinh tế D01)</button>
+      </div>
+
+      <form id="adviseForm">
+        <div class="card">
+          <h2>1. Hồ sơ & Định hướng</h2>
+          <div class="grid-2">
+            <div><label>Khối lớp</label><select id="lop"><option value="12" selected>Lớp 12</option><option value="11">Lớp 11</option><option value="10">Lớp 10</option></select></div>
+            <div><label>Khu vực ưu tiên</label><select id="khu_vuc"><option value="KV1">KV1 (+0.75)</option><option value="KV2-NT">KV2-NT (+0.50)</option><option value="KV2" selected>KV2 (+0.25)</option><option value="KV3">KV3 (0.00)</option></select></div>
+            <div><label>Ngân sách (triệu/năm)</label><input type="number" id="ngan_sach" value="50" min="0" max="500" /></div>
+            <div><label>Thể lực (1-5)</label><input type="number" id="the_luc" value="4" min="1" max="5" /></div>
+            <div><label>IELTS</label><input type="number" id="ielts" value="5.5" step="0.5" min="0" max="9" /></div>
+            <div><label>ĐGNL HSA (/150)</label><input type="number" id="dgnl_hsa" value="100" min="0" max="150" /></div>
+          </div>
         </div>
-      </section>
 
-      <section>
-        <h2>2. Trắc nghiệm Holland RIASEC <small>(1.0 – 5.0)</small></h2>
-        <div id="holland" class="grid g3"></div>
-      </section>
+        <div class="card">
+          <h2>2. Trắc nghiệm Holland RIASEC (1.0 – 5.0)</h2>
+          <div id="hollandContainer" class="grid-2"></div>
+        </div>
 
-      <section>
-        <h2>3. Mức quan tâm các nhóm ngành <small>(1 – 5)</small></h2>
-        <div id="interest" class="grid g3"></div>
-      </section>
+        <div class="card">
+          <h2>3. Mức quan tâm 15 nhóm ngành (1 – 5)</h2>
+          <div id="quanTamContainer" class="grid-2"></div>
+        </div>
 
-      <section>
-        <h2>4. Điểm trung bình học bạ <small>(0–10, để trống nếu không học)</small></h2>
-        <div id="hb" class="grid g6"></div>
-      </section>
+        <div class="card">
+          <h2>4. Điểm trung bình Học bạ (0 – 10, để trống nếu không học)</h2>
+          <div id="hbContainer" class="grid-3"></div>
+        </div>
 
-      <section>
-        <h2>5. Điểm thi tốt nghiệp THPT 2026 <small>(chỉ lớp 12, để trống nếu không thi)</small></h2>
-        <div id="thi" class="grid g6"></div>
-      </section>
+        <div class="card">
+          <h2>5. Điểm thi THPT 2026 (chỉ lớp 12)</h2>
+          <div id="thiContainer" class="grid-3"></div>
+        </div>
 
-      <button id="submit" class="btn" type="submit">Chạy tư vấn ngành nghề 2026</button>
-    </form>
+        <button type="submit" id="submitBtn" class="btn-primary">Chạy tư vấn ngành nghề 2026</button>
+      </form>
+    </section>
 
-    <aside class="panel result" id="result" aria-live="polite">
-      <h2>Kết quả tư vấn</h2>
-      <div id="out"><p class="muted">Nhập hồ sơ rồi bấm nút tư vấn.</p></div>
-      <details id="metrics" hidden>
-        <summary>Độ chính xác mô hình (tập test)</summary>
-        <div id="metrics_body" class="muted"></div>
-      </details>
+    <aside class="sticky">
+      <div class="card" aria-live="polite">
+        <h2>Kết quả tư vấn & Giải trình</h2>
+        <div id="resultArea"><p>Nhấn <b>Chạy tư vấn</b> để hệ chuyên gia suy diễn kết quả.</p></div>
+      </div>
     </aside>
   </main>
 

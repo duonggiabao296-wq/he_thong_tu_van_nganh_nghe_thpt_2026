@@ -2,12 +2,18 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Frontend: http.server 5500",
+      "label": "Run Backend (FastAPI :8000)",
+      "type": "shell",
+      "command": "uvicorn app.main:app --reload --port 8000",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "isBackground": true
+    },
+    {
+      "label": "Run Frontend (HTTP :5500)",
       "type": "shell",
       "command": "python -m http.server 5500",
       "options": { "cwd": "${workspaceFolder}/frontend" },
-      "isBackground": true,
-      "problemMatcher": []
+      "isBackground": true
     }
   ]
 }

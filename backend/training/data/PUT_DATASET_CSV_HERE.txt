@@ -1,1 +1,0 @@
-Đặt file dataset_tu_van_nganh_nghe_thpt_2026.csv (60.000 học sinh, ~51 MB) vào thư mục này để huấn luyện lại mô hình.
