@@ -3,11 +3,12 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from .db import COMBOS, GROUPS, SUBJECTS
 
 PHASE_ORDER = {"normalize": 1, "screen": 2, "score": 3, "aggregate": 4, "admission": 5, "warn": 6}
+SCORING_PHASES = {"normalize", "screen", "score"}
 GROUP_NAME_MAP = {g[0]: g[1] for g in GROUPS}
 GROUP_TUITION_MAP = {g[0]: g[3] for g in GROUPS}
 KV_BONUS = {"KV1": 0.75, "KV2-NT": 0.50, "KV2": 0.25, "KV3": 0.0}
@@ -93,10 +94,54 @@ def build_facts(profile: Dict[str, Any], conn: sqlite3.Connection) -> Dict[str, 
     facts["best_combo"] = best_combo
     facts["best_score"] = round(best_score, 2)
     facts["best_score_ut"] = best_ut
-    facts["margin_top"] = round(best_ut - 25.5, 2)
-    facts["margin_avg"] = round(best_ut - 21.5, 2)
-    facts["budget_gap"] = round(facts["ngan_sach"] - 20.0, 2)
+    # Không hardcode margin_top, margin_avg, budget_gap trước khi suy ra top_group
+    facts["margin_top"] = None
+    facts["margin_avg"] = None
+    facts["budget_gap"] = None
     return facts
+
+
+def _update_derived_facts_from_scores(facts: Dict[str, Any], conn: sqlite3.Connection) -> None:
+    """Cộng điểm suit_base (đã phân xử xung đột), suy ra top_group và điểm chuẩn thật."""
+    for gcode in GROUP_NAME_MAP:
+        base_val = float(facts.get(f"suit_base:{gcode}", 0.0))
+        facts[f"group_score:{gcode}"] = round(float(facts.get(f"group_score:{gcode}", 0.0)) + base_val, 2)
+
+    group_scores = sorted(
+        [(k.replace("group_score:", ""), float(v)) for k, v in facts.items() if k.startswith("group_score:")],
+        key=lambda x: -x[1],
+    )
+    top_g = group_scores[0][0] if group_scores else "CNTT"
+    facts["top_group"] = top_g
+    facts["budget_gap"] = round(facts["ngan_sach"] - GROUP_TUITION_MAP.get(top_g, 20.0), 2)
+
+    row = conn.execute(
+        "SELECT AVG(dc_top), AVG(dc_avg) FROM majors WHERE group_code = ?",
+        (top_g,),
+    ).fetchone()
+    dc_top = float(row[0]) if row and row[0] is not None else 25.5
+    dc_avg = float(row[1]) if row and row[1] is not None else 21.5
+
+    facts["margin_top"] = round(facts["best_score_ut"] - dc_top, 2)
+    facts["margin_avg"] = round(facts["best_score_ut"] - dc_avg, 2)
+
+
+def _format_conflict_reason(winner: Dict[str, Any], loser: Dict[str, Any]) -> str:
+    if winner["priority"] > loser["priority"]:
+        return f"Bị đè bởi {winner['rule_id']} (priority {winner['priority']} > {loser['priority']})"
+    if winner["certainty"] > loser["certainty"]:
+        return f"Bị đè bởi {winner['rule_id']} (certainty {winner['certainty']} > {loser['certainty']})"
+    return f"Bị đè bởi {winner['rule_id']} (thứ tự mã luật ưu tiên hơn)"
+
+
+def combine_cf(cf1: float, cf2: float) -> float:
+    """Gộp hệ số tin cậy theo công thức MYCIN."""
+    if cf1 >= 0 and cf2 >= 0:
+        return round(cf1 + cf2 * (1.0 - cf1), 4)
+    if cf1 < 0 and cf2 < 0:
+        return round(cf1 + cf2 * (1.0 + cf1), 4)
+    denom = 1.0 - min(abs(cf1), abs(cf2))
+    return round((cf1 + cf2) / denom, 4) if denom > 1e-9 else 0.0
 
 
 def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save_trace: bool = False) -> Dict[str, Any]:
@@ -116,20 +161,36 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
     ]
 
     fired_ids: set[str] = set()
+    set_winners: Dict[str, Dict[str, Any]] = {}
+    group_cf: Dict[str, float] = {g: 0.0 for g in GROUP_NAME_MAP}
     trace: List[Dict[str, Any]] = []
     step_no = 0
     n_iterations = 0
 
     for iteration in range(1, 7):
-        matched = [r for r in rules if r["rule_id"] not in fired_ids and eval_condition(r["condition"], facts)]
+        # Vòng 1 chỉ xét các luật normalize/screen/score để xác định top_group trước;
+        # từ vòng 2 trở đi (sau khi đã có top_group và điểm chuẩn thật) mới xét aggregate/admission/warn
+        if "top_group" not in facts:
+            candidate_rules = [r for r in rules if r["phase"] in SCORING_PHASES]
+        else:
+            candidate_rules = rules
+
+        matched = [
+            r for r in candidate_rules
+            if r["rule_id"] not in fired_ids and eval_condition(r["condition"], facts)
+        ]
+
         if not matched:
+            if "top_group" not in facts:
+                _update_derived_facts_from_scores(facts, conn)
+                continue
             break
+
         n_iterations = iteration
 
         # Giải quyết xung đột: pha tăng dần -> priority giảm dần -> certainty giảm dần -> rule_id
         matched.sort(key=lambda r: (PHASE_ORDER.get(r["phase"], 9), -r["priority"], -r["certainty"], r["rule_id"]))
 
-        set_winners: Dict[str, Dict] = {}
         for r in matched:
             step_no += 1
             act = r["action"]
@@ -147,7 +208,7 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
                     "suppressed_by": w["rule_id"],
                     "priority": r["priority"],
                     "certainty": r["certainty"],
-                    "explanation": f"Bị đè bởi {w['rule_id']} (priority {w['priority']} > {r['priority']})",
+                    "explanation": _format_conflict_reason(w, r),
                 })
                 continue
 
@@ -158,6 +219,11 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
                 facts[key] = round(float(facts.get(key, 0.0)) + float(val), 2)
             elif verb == "append":
                 facts.setdefault(key, []).append(val)
+
+            if key.startswith("suit_base:") or key.startswith("group_score:"):
+                gc = key.split(":", 1)[1]
+                signed_cf = float(r["certainty"]) if float(val) >= 0 else -float(r["certainty"])
+                group_cf[gc] = combine_cf(group_cf.get(gc, 0.0), signed_cf)
 
             fired_ids.add(r["rule_id"])
             trace.append({
@@ -172,17 +238,9 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
                 "explanation": r["description"],
             })
 
-        # Sau khi chấm điểm xong vòng 1, cập nhật top_group để luật cảnh báo vòng 2 dùng
-        group_scores = [
-            (k.replace("group_score:", ""), float(v))
-            for k, v in facts.items()
-            if k.startswith("group_score:")
-        ]
-        group_scores.sort(key=lambda x: -x[1])
-        if group_scores:
-            top_g = group_scores[0][0]
-            facts["top_group"] = top_g
-            facts["budget_gap"] = round(facts["ngan_sach"] - GROUP_TUITION_MAP.get(top_g, 20.0), 2)
+        # Sau khi hoàn tất các luật chấm điểm ở vòng 1, suy ra top_group & điểm chuẩn thật cho vòng 2
+        if "top_group" not in facts:
+            _update_derived_facts_from_scores(facts, conn)
 
     group_scores = sorted(
         [(k.replace("group_score:", ""), float(v)) for k, v in facts.items() if k.startswith("group_score:")],
@@ -195,6 +253,7 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
             "group_name": GROUP_NAME_MAP[gc],
             "group_score": round(sc, 2),
             "confidence_pct": round(max(0.1, sc) / total_pos * 100, 1),
+            "certainty_cf": round(group_cf.get(gc, 0.0), 4),
         }
         for gc, sc in group_scores[:3]
     ]
@@ -224,8 +283,8 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
             (session_id, datetime.now(timezone.utc).isoformat(), top_code, top_majors[0]["major_name"] if top_majors else ""),
         )
         conn.executemany(
-            '''INSERT INTO trace_steps(session_id, step_no, iteration, rule_id, phase, fired, suppressed_by, priority, certainty, explanation)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            """INSERT INTO trace_steps(session_id, step_no, iteration, rule_id, phase, fired, suppressed_by, priority, certainty, explanation)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [
                 (
                     session_id, t["step_no"], t["iteration"], t["rule_id"], t["phase"],
@@ -249,5 +308,5 @@ def run_forward_chaining(profile: Dict[str, Any], conn: sqlite3.Connection, save
         "session_id": session_id,
         "n_iterations": n_iterations,
         "n_fired": sum(1 for t in trace if t["fired"] == 1),
-        "trace_preview": trace[:15] if save_trace else [],
+        "trace_preview": trace[:30] if save_trace else [],
     }

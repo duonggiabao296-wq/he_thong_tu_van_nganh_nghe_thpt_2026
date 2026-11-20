@@ -3,7 +3,15 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-import lightgbm as lgb
+import importlib
+
+try:
+    lgb = importlib.import_module("lightgbm")
+except ImportError as exc:
+    raise ImportError(
+        "Thiếu thư viện 'lightgbm'. Hãy cài bằng lệnh: "
+        "python -m pip install lightgbm"
+    ) from exc
 
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
@@ -46,7 +54,15 @@ DROP_LEAKAGE = [
     "du_dinh_nhom_nganh_cua_hoc_sinh", "khop_du_dinh_voi_tu_van",
 ]
 DROP_LEAKAGE += [c for c in df.columns if c.startswith("diem_chuan_")]
-DROP_FAIRNESS = ["gioi_tinh", "dan_toc_thieu_so", "tinh_thanh"]
+DROP_FAIRNESS = [
+    "gioi_tinh",
+    "dan_toc_thieu_so",
+    "dan_toc",
+    "tinh_thanh",
+    "vung_mien",
+    "khu_vuc_cu_tru",
+    "loai_truong",
+]
 COLS_TO_DROP = list(set(DROP_LEAKAGE + DROP_FAIRNESS))
 
 train_df = df[df["tap"] == "train"].copy()

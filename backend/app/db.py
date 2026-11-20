@@ -70,31 +70,35 @@ def build_rules_seed() -> List[Dict]:
     rules: List[Dict] = []
 
     # 1. Luật gợi ý cho 15 nhóm ngành dựa trên Holland + Quan tâm (30 luật: mức cao & mức trung bình)
-    for idx, (gcode, gname, h_code, _) in enumerate(GROUPS):
+    for gcode, gname, h_code, _ in GROUPS:
         primary_h = h_code.split("-")[0]
         rules.append({
             "rule_id": f"SUIT-{gcode}-HIGH",
             "phase": "score",
             "priority": 80,
             "certainty": 0.85,
-            "condition": {"all": [
-                {"fact": "holland_top", "op": "==", "value": primary_h},
-                {"fact": f"qt_{gcode}", "op": ">=", "value": 4},
-            ]},
-            "action": {"verb": "add", "key": f"group_score:{gcode}", "value": 2.4},
-            "description": f"Thiên hướng Holland '{primary_h}' khớp {gname} và quan tâm >= 4",
+            "condition": {
+                "all": [
+                    {"fact": "holland_top", "op": "==", "value": primary_h},
+                    {"fact": f"qt_{gcode}", "op": ">=", "value": 4},
+                ]
+            },
+            "action": {"verb": "set", "key": f"suit_base:{gcode}", "value": 2.4},
+            "description": f"Holland chính {primary_h} khớp và quan tâm cao (>=4) nhóm {gname}",
         })
         rules.append({
             "rule_id": f"SUIT-{gcode}-MED",
             "phase": "score",
             "priority": 60,
             "certainty": 0.65,
-            "condition": {"any": [
-                {"fact": "holland_top", "op": "==", "value": primary_h},
-                {"fact": f"qt_{gcode}", "op": ">=", "value": 4},
-            ]},
-            "action": {"verb": "add", "key": f"group_score:{gcode}", "value": 1.1},
-            "description": f"Có yếu tố Holland '{primary_h}' hoặc quan tâm cao tới {gname}",
+            "condition": {
+                "any": [
+                    {"fact": "holland_top", "op": "==", "value": primary_h},
+                    {"fact": f"qt_{gcode}", "op": ">=", "value": 4},
+                ]
+            },
+            "action": {"verb": "set", "key": f"suit_base:{gcode}", "value": 1.1},
+            "description": f"Holland chính {primary_h} hoặc quan tâm cao nhóm {gname}",
         })
 
     # 2. Luật năng lực môn học then chốt & ràng buộc đặc thù
@@ -191,6 +195,76 @@ def build_rules_seed() -> List[Dict]:
             "condition": {"all": [{"fact": "top_group", "op": "==", "value": "QPAN"}, {"fact": "the_luc", "op": "<=", "value": 2}]},
             "action": {"verb": "append", "key": "warnings", "value": "Cần sơ tuyển sức khỏe/thể lực cho nhóm An ninh - Quốc phòng."},
             "description": "Cảnh báo sơ tuyển thể lực cho nhóm QPAN",
+        },
+        {
+            "rule_id": "SUBJ-KTTCNH-TOAN",
+            "phase": "score",
+            "priority": 80,
+            "certainty": 0.85,
+            "condition": {
+                "all": [
+                    {"fact": "eff_T", "op": ">=", "value": 8.0},
+                    {"fact": "qt_KTTCNH", "op": ">=", "value": 3},
+                ]
+            },
+            "action": {"verb": "add", "key": "group_score:KTTCNH", "value": 1.5},
+            "description": "Điểm Toán >= 8.0 và quan tâm Kinh tế - Tài chính - Ngân hàng",
+        },
+        {
+            "rule_id": "SUBJ-QTKD-TOANANH",
+            "phase": "score",
+            "priority": 80,
+            "certainty": 0.84,
+            "condition": {
+                "all": [
+                    {"fact": "eff_T", "op": ">=", "value": 7.5},
+                    {"fact": "eff_A", "op": ">=", "value": 7.5},
+                ]
+            },
+            "action": {"verb": "add", "key": "group_score:QTKD", "value": 1.5},
+            "description": "Điểm Toán và Tiếng Anh đều >= 7.5 phù hợp Quản trị - Marketing - Logistics",
+        },
+        {
+            "rule_id": "SUBJ-LUAT-VANANH",
+            "phase": "score",
+            "priority": 78,
+            "certainty": 0.82,
+            "condition": {
+                "all": [
+                    {"fact": "eff_V", "op": ">=", "value": 8.0},
+                    {"fact": "qt_LUAT", "op": ">=", "value": 3},
+                ]
+            },
+            "action": {"verb": "add", "key": "group_score:LUAT", "value": 1.5},
+            "description": "Điểm Ngữ văn >= 8.0 và quan tâm nhóm Luật - Hành chính",
+        },
+        {
+            "rule_id": "SUBJ-SUPHAM-VANTOAN",
+            "phase": "score",
+            "priority": 78,
+            "certainty": 0.82,
+            "condition": {
+                "all": [
+                    {"fact": "eff_V", "op": ">=", "value": 7.8},
+                    {"fact": "qt_SUPHAM", "op": ">=", "value": 3},
+                ]
+            },
+            "action": {"verb": "add", "key": "group_score:SUPHAM", "value": 1.5},
+            "description": "Điểm Ngữ văn >= 7.8 và quan tâm nhóm Sư phạm & Giáo dục",
+        },
+        {
+            "rule_id": "SUBJ-KHTN-TOANLY",
+            "phase": "score",
+            "priority": 82,
+            "certainty": 0.88,
+            "condition": {
+                "all": [
+                    {"fact": "eff_T", "op": ">=", "value": 8.5},
+                    {"fact": "eff_L", "op": ">=", "value": 8.0},
+                ]
+            },
+            "action": {"verb": "add", "key": "group_score:KHTN", "value": 1.6},
+            "description": "Điểm Toán >= 8.5 và Vật lí >= 8.0 phù hợp Khoa học tự nhiên & Toán",
         },
     ]
     rules.extend(extra_rules)
